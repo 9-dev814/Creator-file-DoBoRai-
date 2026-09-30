@@ -1,46 +1,120 @@
-name: Build FILE AIM CREATOR APK
+name: Build APK
 
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK
-        run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.7"
+          gradle-version: '8.7'
+
+      - name: Create Android project
+        run: |
+          mkdir -p app/src/main/java/com/aimlock/freeui
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+            repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+            }
+          }
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+              google()
+              mavenCentral()
+            }
+          }
+          rootProject.name='AimLock-V2'
+          include ':app'
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application' version '8.5.2' apply false
+          }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+            id 'com.android.application'
+          }
+
+          android {
+            namespace 'com.aimlock.freeui'
+            compileSdk 35
+
+            defaultConfig {
+              applicationId 'com.aimlock.freeui'
+              minSdk 23
+              targetSdk 35
+              versionCode 1
+              versionName '1.0'
+            }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <application
+              android:theme="@android:style/Theme.Material.NoActionBar"
+              android:label="AIMLOCK V2">
+              <activity
+                android:name=".MainActivity"
+                android:screenOrientation="portrait"
+                android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN"/>
+                  <category android:name="android.intent.category.LAUNCHER"/>
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/aimlock/freeui/MainActivity.java <<'EOF'
+          package com.aimlock.freeui;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.graphics.Color;
+          import android.widget.TextView;
+
+          public class MainActivity extends Activity {
+            @Override
+            protected void onCreate(Bundle b) {
+              super.onCreate(b);
+              TextView v = new TextView(this);
+              v.setText("AIMLOCK V2 FREE");
+              v.setTextColor(Color.WHITE);
+              v.setTextSize(28);
+              v.setGravity(17);
+              v.setBackgroundColor(Color.BLACK);
+              setContentView(v);
+            }
+          }
+          EOF
 
       - name: Build APK
-        working-directory: file_aim_creator
-        run: gradle :app:assembleDebug --stacktrace
+        run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: FILE-AIM-CREATOR-APK
-          path: file_aim_creator/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          
+          name: AIMLOCK-V2-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
